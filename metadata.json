@@ -1,0 +1,6 @@
+{
+  "name": "Community Organization Public Website",
+  "description": "A public community organization website built with grassroots authenticity and professional credibility, featuring initiatives, articles, impact metrics, team roster, and mission.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
