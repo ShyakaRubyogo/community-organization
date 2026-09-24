@@ -34,20 +34,35 @@
 :root {
   --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
   --font-body: 'Karla', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-scale: 100%;
+  --color-accent: #EB7D00;
+  --color-accent-interactive: #C86A00;
+  --color-accent-contrast: #211C0D;
+  --color-primary: #2C5745;
+  --color-bg-canvas: #FAF7F0;
+  --color-surface: #FFFFFF;
+}
+
+html {
+  font-size: var(--font-scale, 100%);
 }
 
 body {
   font-family: var(--font-body);
-  background-color: #FAF7F0;
+  background-color: var(--color-bg-canvas, #FAF7F0);
   color: #4A4437;
   line-height: 1.6;
 }
 
-/* Fraunces soft optical axis for headings */
-h1, h2, h3, h4, h5, h6, .font-display {
-  font-family: var(--font-display);
-  font-variation-settings: 'SOFT' 40, 'opsz' 40;
+/* Headings and display font binding */
+h1, h2, h3, h4, h5, h6, .font-display, [class*="font-['Fraunces']"] {
+  font-family: var(--font-display) !important;
   color: #211C0D;
+}
+
+/* Body font binding across tailwind classes */
+[class*="font-['Karla']"], .font-body {
+  font-family: var(--font-body) !important;
 }
 
 /* Signature Asymmetric Clipped-Corner Photography Motif */

@@ -1,14 +1,19 @@
 import React from 'react';
 import { TreePine, Mail, Phone, MapPin, Instagram, Facebook, Linkedin, Twitter, Youtube } from 'lucide-react';
 import { useRouter } from '../../context/RouterContext';
+import { useCms } from '../../context/CmsContext';
 
 export const Footer: React.FC = () => {
   const { navigate } = useRouter();
+  const { settings } = useCms();
 
   const handleLink = (e: React.MouseEvent, href: string) => {
     e.preventDefault();
     navigate(href);
   };
+
+  const footer = settings.footer;
+  const brandName = settings.brand_name || 'Roots & Canopy';
 
   return (
     <footer className="bg-[#211C0D] text-[#FAF7F0] pt-16 pb-12 lg:pt-20 lg:pb-12 border-t border-[#E4DCC8]/20">
@@ -22,14 +27,14 @@ export const Footer: React.FC = () => {
                 <TreePine className="w-4 h-4" />
               </div>
               <span className="font-['Fraunces'] font-semibold text-[20px] text-[#FAF7F0]">
-                Roots & Canopy
+                {brandName}
               </span>
             </div>
             <p className="font-['Karla'] text-[15px] leading-relaxed text-[#FAF7F0]/65">
-              Cultivating resilient neighborhoods through community urban forests, clean water stewardship, and localized food sovereignty.
+              {footer?.summary || 'Cultivating resilient neighborhoods through community urban forests, clean water stewardship, and localized food sovereignty.'}
             </p>
             <p className="font-['Karla'] text-[13px] text-[#FAF7F0]/40">
-              Registered 501(c)(3) nonprofit community alliance.
+              {footer?.nonprofit_notice || 'Registered 501(c)(3) nonprofit community alliance.'}
             </p>
           </div>
 
@@ -39,42 +44,22 @@ export const Footer: React.FC = () => {
               Quick links
             </h4>
             <ul className="space-y-2 font-['Karla'] text-[15px]">
-              <li>
-                <a
-                  href="/"
-                  onClick={(e) => handleLink(e, '/')}
-                  className="text-[#FAF7F0]/65 hover:text-[#FAF7F0] transition-colors"
-                >
-                  Home
-                </a>
-              </li>
-              <li>
-                <a
-                  href="/about"
-                  onClick={(e) => handleLink(e, '/about')}
-                  className="text-[#FAF7F0]/65 hover:text-[#FAF7F0] transition-colors"
-                >
-                  About us & team
-                </a>
-              </li>
-              <li>
-                <a
-                  href="/initiatives"
-                  onClick={(e) => handleLink(e, '/initiatives')}
-                  className="text-[#FAF7F0]/65 hover:text-[#FAF7F0] transition-colors"
-                >
-                  Public initiatives
-                </a>
-              </li>
-              <li>
-                <a
-                  href="/articles"
-                  onClick={(e) => handleLink(e, '/articles')}
-                  className="text-[#FAF7F0]/65 hover:text-[#FAF7F0] transition-colors"
-                >
-                  Articles & reports
-                </a>
-              </li>
+              {(footer?.quick_links && footer.quick_links.length > 0 ? footer.quick_links : [
+                { label: 'Home', href: '/' },
+                { label: 'About us & team', href: '/about' },
+                { label: 'Public initiatives', href: '/initiatives' },
+                { label: 'Articles & reports', href: '/articles' }
+              ]).map((link, i) => (
+                <li key={i}>
+                  <a
+                    href={link.href}
+                    onClick={(e) => handleLink(e, link.href)}
+                    className="text-[#FAF7F0]/65 hover:text-[#FAF7F0] transition-colors"
+                  >
+                    {link.label}
+                  </a>
+                </li>
+              ))}
             </ul>
           </div>
 
@@ -84,42 +69,22 @@ export const Footer: React.FC = () => {
               Focus areas
             </h4>
             <ul className="space-y-2 font-['Karla'] text-[15px]">
-              <li>
-                <a
-                  href="/initiatives?category=urban-forestry"
-                  onClick={(e) => handleLink(e, '/initiatives?category=urban-forestry')}
-                  className="text-[#FAF7F0]/65 hover:text-[#FAF7F0] transition-colors"
-                >
-                  Urban forestry & shade
-                </a>
-              </li>
-              <li>
-                <a
-                  href="/initiatives?category=food-sovereignty"
-                  onClick={(e) => handleLink(e, '/initiatives?category=food-sovereignty')}
-                  className="text-[#FAF7F0]/65 hover:text-[#FAF7F0] transition-colors"
-                >
-                  Community food forests
-                </a>
-              </li>
-              <li>
-                <a
-                  href="/initiatives?category=watershed-restoration"
-                  onClick={(e) => handleLink(e, '/initiatives?category=watershed-restoration')}
-                  className="text-[#FAF7F0]/65 hover:text-[#FAF7F0] transition-colors"
-                >
-                  Watershed restoration
-                </a>
-              </li>
-              <li>
-                <a
-                  href="/initiatives?category=youth-ecology"
-                  onClick={(e) => handleLink(e, '/initiatives?category=youth-ecology')}
-                  className="text-[#FAF7F0]/65 hover:text-[#FAF7F0] transition-colors"
-                >
-                  Youth ecology apprenticeships
-                </a>
-              </li>
+              {(footer?.focus_links && footer.focus_links.length > 0 ? footer.focus_links : [
+                { label: 'Urban forestry & shade', href: '/initiatives?category=urban-forestry' },
+                { label: 'Community food forests', href: '/initiatives?category=food-sovereignty' },
+                { label: 'Watershed restoration', href: '/initiatives?category=watershed-restoration' },
+                { label: 'Youth ecology apprenticeships', href: '/initiatives?category=youth-ecology' }
+              ]).map((link, i) => (
+                <li key={i}>
+                  <a
+                    href={link.href}
+                    onClick={(e) => handleLink(e, link.href)}
+                    className="text-[#FAF7F0]/65 hover:text-[#FAF7F0] transition-colors"
+                  >
+                    {link.label}
+                  </a>
+                </li>
+              ))}
             </ul>
           </div>
 
@@ -131,27 +96,27 @@ export const Footer: React.FC = () => {
             <div className="space-y-2.5 font-['Karla'] text-[14px] text-[#FAF7F0]/65">
               <div className="flex items-start gap-2.5">
                 <MapPin className="w-4 h-4 text-[#EBE3A7] shrink-0 mt-0.5" />
-                <span>742 Willow Creek Way, Suite 104, Portland, OR</span>
+                <span>{footer?.address || '742 Willow Creek Way, Suite 104, Portland, OR'}</span>
               </div>
               <div className="flex items-center gap-2.5">
                 <Mail className="w-4 h-4 text-[#EBE3A7] shrink-0" />
                 <a
-                  href="mailto:hello@rootsandcanopy.org"
+                  href={`mailto:${footer?.email || 'hello@rootsandcanopy.org'}`}
                   className="hover:text-[#FAF7F0] transition-colors"
                 >
-                  hello@rootsandcanopy.org
+                  {footer?.email || 'hello@rootsandcanopy.org'}
                 </a>
               </div>
               <div className="flex items-center gap-2.5">
                 <Phone className="w-4 h-4 text-[#EBE3A7] shrink-0" />
-                <span>(555) 349-2810</span>
+                <span>{footer?.phone || '(555) 349-2810'}</span>
               </div>
             </div>
 
             {/* Social Icons */}
             <div className="pt-2 flex items-center gap-3">
               <a
-                href="https://instagram.com"
+                href={footer?.socials?.instagram || 'https://instagram.com'}
                 target="_blank"
                 rel="noreferrer"
                 aria-label="Instagram"
@@ -160,7 +125,7 @@ export const Footer: React.FC = () => {
                 <Instagram className="w-4 h-4" />
               </a>
               <a
-                href="https://facebook.com"
+                href={footer?.socials?.facebook || 'https://facebook.com'}
                 target="_blank"
                 rel="noreferrer"
                 aria-label="Facebook"
@@ -169,7 +134,7 @@ export const Footer: React.FC = () => {
                 <Facebook className="w-4 h-4" />
               </a>
               <a
-                href="https://linkedin.com"
+                href={footer?.socials?.linkedin || 'https://linkedin.com'}
                 target="_blank"
                 rel="noreferrer"
                 aria-label="LinkedIn"
@@ -178,7 +143,7 @@ export const Footer: React.FC = () => {
                 <Linkedin className="w-4 h-4" />
               </a>
               <a
-                href="https://x.com"
+                href={footer?.socials?.twitter || 'https://x.com'}
                 target="_blank"
                 rel="noreferrer"
                 aria-label="X Twitter"
@@ -200,10 +165,17 @@ export const Footer: React.FC = () => {
         </div>
 
         {/* Bottom Bar with 1px hairline */}
-        <div className="pt-6 border-t border-[#FAF7F0]/12 text-center">
+        <div className="pt-6 border-t border-[#FAF7F0]/12 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
           <p className="font-['Karla'] text-[14px] text-[#FAF7F0]/65">
-            © {new Date().getFullYear()} Roots & Canopy Alliance. Grassroots authenticity with professional credibility. All rights reserved.
+            © {new Date().getFullYear()} {brandName}. Grassroots authenticity with professional credibility. All rights reserved.
           </p>
+          <button
+            onClick={() => navigate('/admin')}
+            className="font-['Karla'] text-[12px] text-[#FAF7F0]/50 hover:text-[#FAF7F0] transition-colors flex items-center gap-1.5 cursor-pointer py-1 px-2 rounded hover:bg-white/5"
+          >
+            <span>Staff Portal & Admin CMS</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-[#FAF7F0]/70">/admin</span>
+          </button>
         </div>
       </div>
     </footer>

@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from '../context/RouterContext';
 import { getCategories, getFeaturedArticle, getArticles } from '../lib/supabase';
+import { fetchPublishedArticles, cmsArticleToArticle } from '../lib/cmsClient';
+import { useCmsPage } from '../lib/useCmsPage';
+import { defaultCmsArticlesPage } from '../data/cmsSeedDefaults';
+import { CmsArticlesPageContent } from '../types/cms';
 import { Category, Article } from '../types/database';
 import { FilterBar } from '../components/common/FilterBar';
 import { ArticleCard } from '../components/common/ArticleCard';
@@ -11,6 +15,7 @@ import { ErrorState } from '../components/common/ErrorState';
 
 export const ArticlesListingPage: React.FC = () => {
   const { queryParams, navigate, setPageMeta } = useRouter();
+  const { content: cmsArticles } = useCmsPage<CmsArticlesPageContent>('articles', defaultCmsArticlesPage);
 
   const activeCategoryParam = queryParams.get('category') || 'all';
 
@@ -25,32 +30,52 @@ export const ArticlesListingPage: React.FC = () => {
 
   useEffect(() => {
     setPageMeta(
-      'Articles & Field Notes',
-      'Read in-depth field reports, urban ecology insights, and stories from grassroots community stewards.'
+      cmsArticles.seo?.meta_title || 'Articles & Field Notes',
+      cmsArticles.seo?.meta_description ||
+        'Read in-depth field reports, urban ecology insights, and stories from grassroots community stewards.'
     );
-  }, [setPageMeta]);
+  }, [setPageMeta, cmsArticles.seo]);
 
   const loadData = async (catSlug: string) => {
     try {
       setLoading(true);
       setError(null);
 
-      const [cats, featArt] = await Promise.all([
-        getCategories(),
-        getFeaturedArticle()
-      ]);
+      const baseCats = await getCategories();
+      setCategories(baseCats);
 
-      setCategories(cats);
-      setFeaturedArticle(featArt);
+      // Fetch from CMS published collection
+      const cmsItems = await fetchPublishedArticles();
+      let allArticles = cmsItems.map(cmsArticleToArticle);
 
-      // Exclude featured article from the grid if we are on the 'all' view
-      const excludeSlug = catSlug === 'all' && featArt ? featArt.slug : undefined;
-      const gridArticles = await getArticles(
-        catSlug === 'all' ? undefined : catSlug,
-        excludeSlug
-      );
+      if (allArticles.length === 0) {
+        // Fallback to supabase/seed
+        const [featArt, list] = await Promise.all([
+          getFeaturedArticle(),
+          getArticles(catSlug === 'all' ? undefined : catSlug)
+        ]);
+        setFeaturedArticle(featArt);
+        setArticles(list);
+        return;
+      }
 
-      setArticles(gridArticles);
+      // Filter by category if requested
+      if (catSlug !== 'all') {
+        allArticles = allArticles.filter(a =>
+          a.categories?.some(c => c.slug === catSlug || c.name.toLowerCase() === catSlug.toLowerCase())
+        );
+      }
+
+      // Find featured article
+      const feat = allArticles.find(a => a.is_featured) || allArticles[0] || null;
+      setFeaturedArticle(feat);
+
+      // Grid articles (exclude featured if in 'all' view)
+      const grid = (catSlug === 'all' && feat)
+        ? allArticles.filter(a => a.id !== feat.id)
+        : allArticles;
+
+      setArticles(grid);
     } catch (err: any) {
       console.error('Error fetching articles:', err);
       setError(err?.message || 'Failed to load articles.');
@@ -84,10 +109,11 @@ export const ArticlesListingPage: React.FC = () => {
         <div className="max-w-[1200px] mx-auto px-6 sm:px-10 lg:px-16">
           <div className="max-w-[640px] space-y-3">
             <h1 className="font-['Fraunces'] font-semibold text-[38px] sm:text-[49px] leading-tight text-[#211C0D]">
-              Articles & Field Notes
+              {cmsArticles.header?.title || 'Articles & Field Notes'}
             </h1>
             <p className="font-['Karla'] text-[18px] sm:text-[19px] leading-[29px] text-[#6B6350]">
-              Dispatches from the field covering microclimate research, perennial agriculture, watershed stewardship, and youth leadership.
+              {cmsArticles.header?.subtitle ||
+                'Dispatches from the field covering microclimate research, perennial agriculture, watershed stewardship, and youth leadership.'}
             </p>
           </div>
         </div>

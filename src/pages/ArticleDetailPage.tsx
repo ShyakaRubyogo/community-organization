@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import Markdown from 'react-markdown';
 import { useRouter } from '../context/RouterContext';
 import { getArticleBySlug, getRelatedArticles } from '../lib/supabase';
+import { fetchPublishedArticleBySlug, cmsArticleToArticle } from '../lib/cmsClient';
 import { Article } from '../types/database';
 import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
@@ -25,7 +27,15 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({ slug }) =>
       setLoading(true);
       setError(null);
 
-      const found = await getArticleBySlug(targetSlug);
+      // Check CMS published view first
+      let found: Article | null = null;
+      const cmsArt = await fetchPublishedArticleBySlug(targetSlug);
+      if (cmsArt) {
+        found = cmsArticleToArticle(cmsArt);
+      } else {
+        found = await getArticleBySlug(targetSlug);
+      }
+
       if (!found) {
         setError('Article not found. It may have been archived or removed.');
         return;
@@ -146,22 +156,15 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({ slug }) =>
       {/* ========================================================================= */}
       <main className="py-8 bg-[#FAF7F0]">
         <article className="max-w-[680px] mx-auto px-6 space-y-6 font-['Karla'] text-[17px] sm:text-[18px] leading-[29px] text-[#4A4437]">
-          {paragraphs.map((p, idx) => {
-            // Optional pull-quote insertion for second paragraph if long enough
-            if (idx === 1 && paragraphs.length > 3) {
-              return (
-                <React.Fragment key={idx}>
-                  <p>{p}</p>
-                  <div className="my-8 bg-[#EBE3A7] border-l-4 border-[#2C5745] p-6 rounded-r-[12px] shadow-xs">
-                    <blockquote className="font-['Fraunces'] italic font-normal text-[20px] sm:text-[22px] leading-[32px] text-[#211C0D]">
-                      “Enduring ecological justice begins not with corporate subsidies, but with neighbors cultivating shared soil.”
-                    </blockquote>
-                  </div>
-                </React.Fragment>
-              );
-            }
-            return <p key={idx}>{p}</p>;
-          })}
+          {article.body ? (
+            <div className="space-y-5">
+              <Markdown>{article.body}</Markdown>
+            </div>
+          ) : (
+            paragraphs.map((p, idx) => (
+              <p key={idx}>{p}</p>
+            ))
+          )}
 
           {/* Inline Media from Article Media if present */}
           {article.media && article.media.length > 0 && (

@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from '../context/RouterContext';
 import { getCategories, getInitiatives } from '../lib/supabase';
+import { fetchPublishedInitiatives, cmsInitiativeToInitiative } from '../lib/cmsClient';
+import { useCmsPage } from '../lib/useCmsPage';
+import { defaultCmsInitiativesPage } from '../data/cmsSeedDefaults';
+import { CmsInitiativesPageContent } from '../types/cms';
 import { Category, Initiative } from '../types/database';
 import { FilterBar } from '../components/common/FilterBar';
 import { InitiativeCard } from '../components/common/InitiativeCard';
@@ -10,6 +14,7 @@ import { ErrorState } from '../components/common/ErrorState';
 
 export const InitiativesListingPage: React.FC = () => {
   const { queryParams, navigate, setPageMeta } = useRouter();
+  const { content: cmsInitiatives } = useCmsPage<CmsInitiativesPageContent>('initiatives', defaultCmsInitiativesPage);
 
   const activeCategoryParam = queryParams.get('category') || 'all';
 
@@ -23,23 +28,35 @@ export const InitiativesListingPage: React.FC = () => {
 
   useEffect(() => {
     setPageMeta(
-      'Initiatives',
-      'Explore our active community initiatives in urban forestry, food sovereignty, watershed restoration, and youth apprenticeships.'
+      cmsInitiatives.seo?.meta_title || 'Initiatives',
+      cmsInitiatives.seo?.meta_description ||
+        'Explore our active community initiatives in urban forestry, food sovereignty, watershed restoration, and youth apprenticeships.'
     );
-  }, [setPageMeta]);
+  }, [setPageMeta, cmsInitiatives.seo]);
 
   const loadData = async (catSlug: string) => {
     try {
       setLoading(true);
       setError(null);
 
-      const [cats, inits] = await Promise.all([
-        getCategories(),
-        getInitiatives(catSlug === 'all' ? undefined : catSlug)
-      ]);
+      // Fetch base categories
+      const baseCats = await getCategories();
 
-      setCategories(cats);
-      setInitiatives(inits);
+      // Fetch CMS published initiatives
+      const cmsInits = await fetchPublishedInitiatives();
+      let converted = cmsInits.map(cmsInitiativeToInitiative);
+
+      // If no CMS initiatives returned or fallback needed
+      if (converted.length === 0) {
+        converted = await getInitiatives(catSlug === 'all' ? undefined : catSlug);
+      } else if (catSlug !== 'all') {
+        converted = converted.filter(i => 
+          i.categories?.some(c => c.slug === catSlug || c.name.toLowerCase() === catSlug.toLowerCase())
+        );
+      }
+
+      setCategories(baseCats);
+      setInitiatives(converted);
     } catch (err: any) {
       console.error('Error fetching initiatives:', err);
       setError(err?.message || 'Failed to load initiatives.');
@@ -73,10 +90,11 @@ export const InitiativesListingPage: React.FC = () => {
         <div className="max-w-[1200px] mx-auto px-6 sm:px-10 lg:px-16">
           <div className="max-w-[640px] space-y-3">
             <h1 className="font-['Fraunces'] font-semibold text-[38px] sm:text-[49px] leading-tight text-[#211C0D]">
-              Initiatives
+              {cmsInitiatives.header?.title || 'Initiatives'}
             </h1>
             <p className="font-['Karla'] text-[18px] sm:text-[19px] leading-[29px] text-[#6B6350]">
-              Discover hands-on community projects actively restoring ecosystems, producing local food, and mentoring youth across our bioregion.
+              {cmsInitiatives.header?.subtitle ||
+                'Discover hands-on community projects actively restoring ecosystems, producing local food, and mentoring youth across our bioregion.'}
             </p>
           </div>
         </div>

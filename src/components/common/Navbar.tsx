@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, TreePine } from 'lucide-react';
+import { Menu, X, TreePine, Leaf, Sprout, Sun, Heart, Globe, Mountain, Sparkles } from 'lucide-react';
 import { useRouter } from '../../context/RouterContext';
+import { useCms } from '../../context/CmsContext';
 import { Button } from './Button';
 
 interface NavbarProps {
@@ -9,6 +10,7 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ isTransparentHero = false }) => {
   const { path, navigate } = useRouter();
+  const { settings } = useCms();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -37,12 +39,15 @@ export const Navbar: React.FC<NavbarProps> = ({ isTransparentHero = false }) => 
     };
   }, [isMobileMenuOpen]);
 
-  const navLinks = [
+  const navLinks = settings.navigation_links || [
     { label: 'Home', href: '/' },
     { label: 'About', href: '/about' },
     { label: 'Initiatives', href: '/initiatives' },
     { label: 'Articles', href: '/articles' }
   ];
+
+  const brandName = settings.brand_name || 'Atiak & Abdi';
+  const cta = settings.header_cta || { label: 'Get Involved', href: '/initiatives', is_visible: true };
 
   const isDarkHeroMode = isTransparentHero && !isScrolled;
 
@@ -52,10 +57,71 @@ export const Navbar: React.FC<NavbarProps> = ({ isTransparentHero = false }) => 
     navigate(href);
   };
 
+  const renderLogoVisual = (isDarkHero: boolean) => {
+    const logoType = settings.logo_type || 'icon';
+
+    if (logoType === 'image' && settings.logo_image?.url) {
+      return (
+        <img
+          src={settings.logo_image.url}
+          alt={settings.logo_image.alt_text || brandName}
+          className="h-9 w-auto max-w-[160px] object-contain rounded-md"
+        />
+      );
+    }
+
+    if (logoType === 'text') {
+      return null;
+    }
+
+    const iconName = settings.logo_icon || 'TreePine';
+    let IconComponent = TreePine;
+    if (iconName === 'Leaf') IconComponent = Leaf;
+    else if (iconName === 'Sprout') IconComponent = Sprout;
+    else if (iconName === 'Sun') IconComponent = Sun;
+    else if (iconName === 'Heart') IconComponent = Heart;
+    else if (iconName === 'Globe') IconComponent = Globe;
+    else if (iconName === 'Mountain') IconComponent = Mountain;
+
+    return (
+      <div
+        className={`w-9 h-9 rounded-[8px] flex items-center justify-center transition-colors shrink-0 ${
+          isDarkHero ? 'bg-[#FAF7F0] text-[#2C5745]' : 'bg-[#2C5745] text-[#FAF7F0]'
+        }`}
+      >
+        <IconComponent className="w-5 h-5" />
+      </div>
+    );
+  };
+
   return (
     <>
+      {/* Optional Top Announcement Bar */}
+      {settings.announcement_bar?.is_enabled && settings.announcement_bar.text && (
+        <aside
+          aria-label="Announcement"
+          className="bg-[#2C5745] text-[#FAF7F0] text-xs py-2 px-4 text-center font-['Karla'] font-medium flex items-center justify-center gap-2 relative z-50 border-b border-[#2C5745]/30"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-[#EBE3A7] shrink-0" />
+          <span>{settings.announcement_bar.text}</span>
+          {settings.announcement_bar.link_href && (
+            <a
+              href={settings.announcement_bar.link_href}
+              onClick={(e) => handleNavClick(e, settings.announcement_bar!.link_href!)}
+              className="underline font-semibold text-[#EBE3A7] hover:text-white ml-1 transition-colors"
+            >
+              {settings.announcement_bar.link_label || 'Learn more →'}
+            </a>
+          )}
+        </aside>
+      )}
+
       <header
-        className={`fixed top-0 left-0 right-0 z-40 h-[80px] transition-all duration-200 ease-in-out ${
+        className={`fixed left-0 right-0 z-40 h-[80px] transition-all duration-200 ease-in-out ${
+          settings.announcement_bar?.is_enabled && settings.announcement_bar.text
+            ? 'top-[33px]'
+            : 'top-0'
+        } ${
           isScrolled
             ? 'bg-[#FFFFFF] border-b border-[#E4DCC8] shadow-xs'
             : isDarkHeroMode
@@ -70,19 +136,13 @@ export const Navbar: React.FC<NavbarProps> = ({ isTransparentHero = false }) => 
             onClick={(e) => handleNavClick(e, '/')}
             className="flex items-center gap-2.5 group focus-visible:outline-2 focus-visible:outline-[#C86A00] rounded-sm"
           >
-            <div
-              className={`w-9 h-9 rounded-[8px] flex items-center justify-center transition-colors ${
-                isDarkHeroMode ? 'bg-[#FAF7F0] text-[#2C5745]' : 'bg-[#2C5745] text-[#FAF7F0]'
-              }`}
-            >
-              <TreePine className="w-5 h-5" />
-            </div>
+            {renderLogoVisual(isDarkHeroMode)}
             <span
               className={`font-['Fraunces'] font-semibold text-[20px] tracking-tight transition-colors ${
                 isDarkHeroMode ? 'text-[#FAF7F0]' : 'text-[#211C0D]'
               }`}
             >
-              Atiak & Abdi
+              {brandName}
             </span>
           </a>
 
@@ -109,27 +169,31 @@ export const Navbar: React.FC<NavbarProps> = ({ isTransparentHero = false }) => 
             })}
 
             {/* Top-priority CTA */}
-            <div className="ml-2">
-              <Button
-                variant={isDarkHeroMode ? 'accent' : 'primary'}
-                size="sm"
-                onClick={(e) => handleNavClick(e, '/initiatives')}
-              >
-                Get Involved
-              </Button>
-            </div>
+            {cta.is_visible !== false && (
+              <div className="ml-2">
+                <Button
+                  variant={isDarkHeroMode ? 'accent' : 'primary'}
+                  size="sm"
+                  onClick={(e) => handleNavClick(e, cta.href)}
+                >
+                  {cta.label}
+                </Button>
+              </div>
+            )}
           </nav>
 
           {/* Mobile Hamburger Button */}
           <div className="flex items-center gap-3 lg:hidden">
-            <Button
-              variant={isDarkHeroMode ? 'accent' : 'primary'}
-              size="sm"
-              onClick={(e) => handleNavClick(e, '/initiatives')}
-              className="text-xs px-3"
-            >
-              Involved
-            </Button>
+            {cta.is_visible !== false && (
+              <Button
+                variant={isDarkHeroMode ? 'accent' : 'primary'}
+                size="sm"
+                onClick={(e) => handleNavClick(e, cta.href)}
+                className="text-xs px-3"
+              >
+                {cta.label.split(' ')[0]}
+              </Button>
+            )}
             <button
               type="button"
               onClick={() => setIsMobileMenuOpen(true)}
@@ -153,11 +217,9 @@ export const Navbar: React.FC<NavbarProps> = ({ isTransparentHero = false }) => 
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-[8px] bg-[#FAF7F0] text-[#2C5745] flex items-center justify-center">
-                <TreePine className="w-5 h-5" />
-              </div>
+              {renderLogoVisual(true)}
               <span className="font-['Fraunces'] font-semibold text-[20px] text-[#FAF7F0]">
-                Roots & Canopy
+                {brandName}
               </span>
             </div>
             <button
@@ -193,16 +255,18 @@ export const Navbar: React.FC<NavbarProps> = ({ isTransparentHero = false }) => 
           </div>
 
           <div className="pt-6 border-t border-[#FAF7F0]/15 flex flex-col gap-4">
-            <Button
-              variant="accent"
-              size="md"
-              onClick={(e) => handleNavClick(e, '/initiatives')}
-              className="w-full text-center"
-            >
-              Explore Our Initiatives
-            </Button>
+            {cta.is_visible !== false && (
+              <Button
+                variant="accent"
+                size="md"
+                onClick={(e) => handleNavClick(e, cta.href)}
+                className="w-full text-center"
+              >
+                {cta.label}
+              </Button>
+            )}
             <p className="font-['Karla'] text-[14px] text-[#FAF7F0]/65 text-center">
-              Grassroots ecological stewardship for our shared future.
+              {settings.tagline || 'Grassroots ecological stewardship for our shared future.'}
             </p>
           </div>
         </div>

@@ -58,12 +58,23 @@ export const Button: React.FC<ButtonProps> = ({
 
   const combinedClasses = `inline-flex items-center justify-center font-semibold font-['Karla'] rounded-[8px] whitespace-nowrap focus-visible:outline-2 focus-visible:outline-[#C86A00] focus-visible:outline-offset-2 ${variant !== 'ghost' ? sizeClasses : 'text-[15px] h-auto py-2'} ${variantClasses} ${className}`;
 
+  const dynamicStyle: React.CSSProperties = { ...props.style };
+  if (!disabled) {
+    if (variant === 'accent') {
+      dynamicStyle.backgroundColor = 'var(--color-accent, #EB7D00)';
+      dynamicStyle.color = 'var(--color-accent-contrast, #211C0D)';
+    } else if (variant === 'primary') {
+      dynamicStyle.backgroundColor = 'var(--color-primary, #2C5745)';
+    }
+  }
+
   if (asLink && href) {
     return (
       <a
         href={href}
         onClick={onClick as any}
         className={combinedClasses}
+        style={dynamicStyle}
         tabIndex={disabled ? -1 : 0}
       >
         {children}
@@ -76,6 +87,7 @@ export const Button: React.FC<ButtonProps> = ({
       onClick={onClick}
       disabled={disabled}
       className={combinedClasses}
+      style={dynamicStyle}
       {...props}
     >
       {children}

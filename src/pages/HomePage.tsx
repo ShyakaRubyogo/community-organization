@@ -1,13 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { useRouter } from '../context/RouterContext';
+import { useCmsPage } from '../lib/useCmsPage';
+import { CmsHomePageContent } from '../types/cms';
+import { defaultCmsHomePage } from '../data/cmsSeedDefaults';
 import {
   getOrganizationProfile,
   getFeaturedInitiatives,
   getArticles,
-  getTeamMembers,
-  getImpactHighlights
+  getTeamMembers
 } from '../lib/supabase';
+import {
+  fetchPublishedInitiatives,
+  fetchPublishedArticles,
+  fetchPublishedTeamMembers,
+  cmsInitiativeToInitiative,
+  cmsArticleToArticle,
+  cmsTeamMemberToTeamMember
+} from '../lib/cmsClient';
 import {
   OrganizationProfile,
   Initiative,
@@ -23,6 +33,7 @@ import { ErrorState } from '../components/common/ErrorState';
 
 export const HomePage: React.FC = () => {
   const { navigate, setPageMeta } = useRouter();
+  const { content: cmsHome } = useCmsPage<CmsHomePageContent>('home', defaultCmsHomePage);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,30 +42,39 @@ export const HomePage: React.FC = () => {
   const [initiatives, setInitiatives] = useState<Initiative[]>([]);
   const [articles, setArticles] = useState<Article[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [impactHighlights, setImpactHighlights] = useState<Array<{ label: string; value: string }>>([]);
 
   const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const [orgProfile, featuredInits, latestArticles, team, highlights] = await Promise.all([
+      const [orgProfile, cmsInits, cmsArts, cmsTeam] = await Promise.all([
         getOrganizationProfile(),
-        getFeaturedInitiatives(3),
-        getArticles(undefined, undefined, 3),
-        getTeamMembers(),
-        getImpactHighlights()
+        fetchPublishedInitiatives(),
+        fetchPublishedArticles(),
+        fetchPublishedTeamMembers()
       ]);
 
+      const mappedInits = cmsInits.length > 0 
+        ? cmsInits.map(cmsInitiativeToInitiative).slice(0, 3) 
+        : await getFeaturedInitiatives(3);
+
+      const mappedArts = cmsArts.length > 0 
+        ? cmsArts.map(cmsArticleToArticle).slice(0, 3) 
+        : await getArticles(undefined, undefined, 3);
+
+      const mappedTeam = cmsTeam.length > 0
+        ? cmsTeam.map(cmsTeamMemberToTeamMember).slice(0, 4)
+        : (await getTeamMembers()).filter(t => t.is_featured || t.sort_order <= 4);
+
       setProfile(orgProfile);
-      setInitiatives(featuredInits);
-      setArticles(latestArticles);
-      setTeamMembers(team.filter(t => t.is_featured || t.sort_order <= 4));
-      setImpactHighlights(highlights);
+      setInitiatives(mappedInits);
+      setArticles(mappedArts);
+      setTeamMembers(mappedTeam);
 
       setPageMeta(
-        orgProfile.name,
-        orgProfile.tagline || 'Cultivating resilient neighborhoods through community forests, clean water, and food sovereignty.'
+        cmsHome.seo?.meta_title || orgProfile.name,
+        cmsHome.seo?.meta_description || orgProfile.tagline || 'Cultivating resilient neighborhoods through community forests, clean water, and food sovereignty.'
       );
     } catch (err: any) {
       console.error('Failed to load homepage data:', err);
@@ -66,7 +86,7 @@ export const HomePage: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [cmsHome]);
 
   if (loading) {
     return <LoadingState message="Loading community initiatives & impact..." />;
@@ -98,27 +118,27 @@ export const HomePage: React.FC = () => {
               className="lg:col-span-7 space-y-6"
             >
               <h1 className="font-['Fraunces'] font-semibold text-[38px] sm:text-[48px] lg:text-[56px] leading-[1.1] text-[#211C0D] tracking-tight">
-                {profile.tagline || 'Cultivating resilient neighborhoods through community forests and food sovereignty.'}
+                {cmsHome.hero?.headline || profile.tagline}
               </h1>
 
               <p className="font-['Karla'] text-[18px] sm:text-[19px] leading-[29px] text-[#4A4437] max-w-[640px]">
-                {profile.mission || 'We unite neighbors, youth, and local stewards to build healthy ecosystems and regenerative communities through hands-on ecological action.'}
+                {cmsHome.hero?.description || profile.mission}
               </p>
 
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
                 <Button
                   variant="primary"
                   size="lg"
-                  onClick={() => navigate('/initiatives')}
+                  onClick={() => navigate(cmsHome.hero?.primary_cta?.href || '/initiatives')}
                 >
-                  View initiatives
+                  {cmsHome.hero?.primary_cta?.label || 'View initiatives'}
                 </Button>
                 <Button
                   variant="ghost"
                   size="lg"
-                  onClick={() => navigate('/articles')}
+                  onClick={() => navigate(cmsHome.hero?.secondary_cta?.href || '/articles')}
                 >
-                  Read articles
+                  {cmsHome.hero?.secondary_cta?.label || 'Read articles'}
                 </Button>
               </div>
             </motion.div>
@@ -147,9 +167,10 @@ export const HomePage: React.FC = () => {
               {/* Photo with signature clipped-corner radius */}
               <div className="relative z-10 w-full aspect-[4/3] sm:aspect-[5/4] radius-photo overflow-hidden shadow-[0_12px_36px_rgba(33,28,13,0.12)] border border-[#E4DCC8]/80 bg-[#FFFFFF]">
                 <img
-                  src={profile.hero_image_url || 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&w=1200&q=80'}
-                  alt="Community members planting together"
+                  src={cmsHome.hero?.hero_image?.url || profile.hero_image_url || 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&w=1200&q=80'}
+                  alt={cmsHome.hero?.hero_image?.alt_text || 'Community members planting together'}
                   className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
                 />
               </div>
             </div>
@@ -163,17 +184,17 @@ export const HomePage: React.FC = () => {
       <section className="bg-[#FAF7F0] py-16 lg:py-24 border-t border-[#E4DCC8]/60">
         <div className="max-w-[720px] mx-auto px-6 sm:px-8 text-center space-y-4">
           <h2 className="font-['Fraunces'] font-semibold text-[31px] sm:text-[39px] text-[#211C0D] tracking-tight">
-            Rooted in neighborhood trust
+            {cmsHome.mission_band?.title || 'Rooted in neighborhood trust'}
           </h2>
           <p className="font-['Karla'] text-[18px] sm:text-[19px] leading-[29px] text-[#4A4437]">
-            {profile.description || 'Founded by local community organizers, Roots & Canopy Alliance collaborates with neighborhood groups, schools, and volunteers to turn heat islands into productive fruit groves and living water catchments.'}
+            {cmsHome.mission_band?.description || profile.description}
           </p>
           <div className="pt-2">
             <Button
               variant="ghost"
-              onClick={() => navigate('/about')}
+              onClick={() => navigate(cmsHome.mission_band?.link_href || '/about')}
             >
-              Learn more about our approach & story
+              {cmsHome.mission_band?.link_label || 'Learn more about our approach & story'}
             </Button>
           </div>
         </div>
@@ -247,14 +268,14 @@ export const HomePage: React.FC = () => {
       <section className="py-16 lg:py-24 bg-[#211C0D] text-[#FAF7F0]">
         <div className="max-w-[1200px] mx-auto px-6 sm:px-10 lg:px-16">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-0 lg:divide-x lg:divide-[#FAF7F0]/15">
-            {impactHighlights.map((stat, idx) => (
+            {(cmsHome.impact_band?.metrics || []).map((stat, idx) => (
               <div
-                key={idx}
+                key={stat.id || idx}
                 className={`text-center flex flex-col justify-center ${
                   idx > 0 ? 'lg:px-6' : 'lg:pr-6'
                 }`}
               >
-                <span className="font-['Fraunces'] font-semibold text-[44px] lg:text-[49px] text-[#EB7D00] leading-tight">
+                <span className="font-['Fraunces'] font-semibold text-[44px] lg:text-[49px] text-[var(--color-accent,#EB7D00)] leading-tight">
                   {stat.value}
                 </span>
                 <span className="font-['Karla'] font-medium text-[16px] text-[#FAF7F0] mt-1">
@@ -304,18 +325,18 @@ export const HomePage: React.FC = () => {
         <div className="max-w-[1200px] mx-auto px-6 sm:px-10 lg:px-16 flex justify-center">
           <div className="bg-[#EBE3A7] rounded-[16px] border border-[#9C8B5E]/40 p-8 sm:p-12 text-center max-w-[560px] w-full shadow-xs space-y-4">
             <h3 className="font-['Fraunces'] font-semibold text-[25px] sm:text-[31px] text-[#211C0D] leading-tight">
-              Ready to cultivate community resilience?
+              {cmsHome.cta_band?.title || 'Ready to cultivate community resilience?'}
             </h3>
             <p className="font-['Karla'] text-[16px] text-[#3D3319] leading-relaxed">
-              Explore our ongoing neighborhood initiatives, attend a community planting day, or learn how to bring a food forest to your block.
+              {cmsHome.cta_band?.description || 'Explore our ongoing neighborhood initiatives, attend a community planting day, or learn how to bring a food forest to your block.'}
             </p>
             <div className="pt-2">
               <Button
                 variant="primary"
                 size="md"
-                onClick={() => navigate('/initiatives')}
+                onClick={() => navigate(cmsHome.cta_band?.button?.href || '/initiatives')}
               >
-                Explore our initiatives
+                {cmsHome.cta_band?.button?.label || 'Explore our initiatives'}
               </Button>
             </div>
           </div>

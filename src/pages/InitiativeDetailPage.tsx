@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { MapPin, Calendar, ExternalLink, Activity, Sparkles } from 'lucide-react';
+import Markdown from 'react-markdown';
 import { useRouter } from '../context/RouterContext';
 import { getInitiativeBySlug, getRelatedInitiatives } from '../lib/supabase';
+import { fetchPublishedInitiativeBySlug, cmsInitiativeToInitiative } from '../lib/cmsClient';
 import { Initiative, MediaAsset } from '../types/database';
 import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
@@ -30,7 +32,15 @@ export const InitiativeDetailPage: React.FC<InitiativeDetailPageProps> = ({ slug
       setLoading(true);
       setError(null);
 
-      const found = await getInitiativeBySlug(targetSlug);
+      // Check CMS published views first
+      let found: Initiative | null = null;
+      const cmsItem = await fetchPublishedInitiativeBySlug(targetSlug);
+      if (cmsItem) {
+        found = cmsInitiativeToInitiative(cmsItem);
+      } else {
+        found = await getInitiativeBySlug(targetSlug);
+      }
+
       if (!found) {
         setError('Initiative not found. It may have been archived or moved.');
         return;
@@ -171,9 +181,15 @@ export const InitiativeDetailPage: React.FC<InitiativeDetailPageProps> = ({ slug
 
               {/* Body prose (constrained to 680px for optimal ~75ch readability) */}
               <div className="max-w-[680px] space-y-5 font-['Karla'] text-[16px] sm:text-[17px] leading-[28px] text-[#4A4437]">
-                {paragraphs.map((p, idx) => (
-                  <p key={idx}>{p}</p>
-                ))}
+                {initiative.body ? (
+                  <div className="space-y-4">
+                    <Markdown>{initiative.body}</Markdown>
+                  </div>
+                ) : (
+                  paragraphs.map((p, idx) => (
+                    <p key={idx}>{p}</p>
+                  ))
+                )}
               </div>
             </div>
 
