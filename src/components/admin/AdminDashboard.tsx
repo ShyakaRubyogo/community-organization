@@ -104,24 +104,6 @@ export const AdminDashboard: React.FC = () => {
         </div>
       </header>
 
-      {/* Demo / Read-Only Mode Notification Banner */}
-      {adminUser?.is_demo && (
-        <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 sm:px-8 py-2.5 flex items-center justify-between text-xs text-amber-950 font-medium">
-          <div className="flex items-center gap-2">
-            <span className="inline-block w-2 h-2 rounded-full bg-amber-600 animate-ping" />
-            <span>
-              <strong>Preview Demo Mode:</strong> You are exploring the full Admin Studio with seed defaults. Live PostgreSQL writes require Supabase environment keys.
-            </span>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="text-amber-900 underline hover:text-amber-950 font-semibold text-[11px]"
-          >
-            Exit Preview Mode
-          </button>
-        </div>
-      )}
-
       {/* Main Studio Body: Sidebar + Editor Panel */}
       <div className="flex-1 flex max-w-7xl w-full mx-auto">
         {/* Navigation Sidebar */}

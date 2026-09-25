@@ -17,7 +17,11 @@ const MainContent: React.FC = () => {
   const { path, navigate } = useRouter();
   const { isPreviewMode, togglePreviewMode, adminUser } = useCms();
 
-  const isCmsRoute = path === '/admin' || path.startsWith('/admin?') || path.startsWith('/admin#');
+  const normalizedPath = (path || '/').trim().toLowerCase().replace(/\/+$/, '') || '/';
+  const isCmsRoute =
+    normalizedPath === '/admin' ||
+    normalizedPath.startsWith('/admin?') ||
+    normalizedPath.startsWith('/admin#');
 
   // If viewing admin route, render admin panel with the return button in the bottom right
   if (isCmsRoute) {
@@ -126,19 +130,17 @@ const MainContent: React.FC = () => {
       <div className="flex-1">{renderRoute()}</div>
       <Footer />
 
-      {/* Floating CMS Studio access button */}
-      <button
-        onClick={() => navigate('/admin')}
-        className={`fixed bottom-4 right-4 z-40 text-xs font-semibold px-3 py-2 rounded-full shadow-lg flex items-center gap-2 border transition-all hover:scale-105 cursor-pointer ${
-          adminUser
-            ? 'bg-[#2C5745] hover:bg-[#234537] text-[#FAF7F0] border-[#FAF7F0]/20'
-            : 'bg-[#211C0D]/90 hover:bg-[#211C0D] text-[#FAF7F0] border-white/20 backdrop-blur-sm'
-        }`}
-        title="Open Alliance CMS Studio"
-      >
-        <Shield className="w-3.5 h-3.5 text-[#EBE3A7]" />
-        <span>{adminUser ? 'CMS Studio (Active)' : 'Admin CMS'}</span>
-      </button>
+      {/* Floating CMS Studio access badge - ONLY shown to logged-in admins */}
+      {adminUser && (
+        <button
+          onClick={() => navigate('/admin')}
+          className="fixed bottom-4 right-4 z-40 text-xs font-semibold px-3.5 py-2 rounded-full shadow-lg flex items-center gap-2 border transition-all hover:scale-105 cursor-pointer bg-[#2C5745] hover:bg-[#234537] text-[#FAF7F0] border-[#FAF7F0]/20 backdrop-blur-sm"
+          title="Open Alliance CMS Studio"
+        >
+          <Shield className="w-3.5 h-3.5 text-[#EBE3A7]" />
+          <span>CMS Studio (Logged In)</span>
+        </button>
+      )}
     </div>
   );
 };

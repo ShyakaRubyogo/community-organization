@@ -329,6 +329,49 @@ export async function sendMagicLink(email: string): Promise<{ success: boolean; 
 }
 
 /**
+ * Sign in with email and password
+ */
+export async function signInWithPassword(
+  email: string,
+  password: string
+): Promise<{ success: boolean; message: string; user?: CmsAdminUser }> {
+  if (!isSupabaseConfigured() || !supabase) {
+    return {
+      success: false,
+      message: 'Supabase credentials are not configured in this environment.'
+    };
+  }
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  if (error) {
+    return { success: false, message: error.message };
+  }
+
+  if (!data.user) {
+    return { success: false, message: 'Authentication failed. Please verify credentials.' };
+  }
+
+  const admin = await checkCurrentAdmin();
+  if (!admin) {
+    await supabase.auth.signOut();
+    return {
+      success: false,
+      message: 'Signed in, but this account is not in the authorized cms_admins table.'
+    };
+  }
+
+  return {
+    success: true,
+    message: 'Signed in successfully!',
+    user: admin
+  };
+}
+
+/**
  * Log out
  */
 export async function logoutCmsAdmin(): Promise<void> {

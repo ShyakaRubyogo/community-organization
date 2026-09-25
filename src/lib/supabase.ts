@@ -31,33 +31,13 @@ export const isSupabaseConfigured = Boolean(
 );
 
 export const supabase: SupabaseClient | null = isSupabaseConfigured
-  ? createClient(supabaseUrl, supabaseAnonKey)
+  ? createClient(supabaseUrl.trim().replace(/\/+$/, ''), supabaseAnonKey.trim())
   : null;
 
 /**
- * Fetch organization profile
+ * Fetch organization profile (resolved from memory fallback; CMS branding lives in cms_settings_published)
  */
 export async function getOrganizationProfile(): Promise<OrganizationProfile> {
-  if (supabase) {
-    try {
-      const { data, error } = await supabase
-        .from('organization_profile')
-        .select('*')
-        .eq('id', 1)
-        .single();
-
-      if (!error && data) {
-        return {
-          ...mockOrganizationProfile,
-          ...data,
-          values: data.values || mockOrganizationProfile.values,
-          global_metrics: data.global_metrics || mockOrganizationProfile.global_metrics
-        };
-      }
-    } catch {
-      // Fall through to mock data
-    }
-  }
   return mockOrganizationProfile;
 }
 
@@ -65,21 +45,6 @@ export async function getOrganizationProfile(): Promise<OrganizationProfile> {
  * Fetch published team members
  */
 export async function getTeamMembers(): Promise<TeamMember[]> {
-  if (supabase) {
-    try {
-      const { data, error } = await supabase
-        .from('team_members')
-        .select('*')
-        .eq('is_published', true)
-        .order('sort_order', { ascending: true });
-
-      if (!error && data && data.length > 0) {
-        return data as TeamMember[];
-      }
-    } catch {
-      // Fall through
-    }
-  }
   return [...mockTeamMembers].sort((a, b) => a.sort_order - b.sort_order);
 }
 
@@ -87,21 +52,6 @@ export async function getTeamMembers(): Promise<TeamMember[]> {
  * Fetch active categories
  */
 export async function getCategories(): Promise<Category[]> {
-  if (supabase) {
-    try {
-      const { data, error } = await supabase
-        .from('categories')
-        .select('*')
-        .eq('is_active', true)
-        .order('name', { ascending: true });
-
-      if (!error && data && data.length > 0) {
-        return data as Category[];
-      }
-    } catch {
-      // Fall through
-    }
-  }
   return mockCategories.filter(c => c.is_active);
 }
 
@@ -109,38 +59,11 @@ export async function getCategories(): Promise<Category[]> {
  * Fetch featured initiatives for homepage
  */
 export async function getFeaturedInitiatives(limit: number = 3): Promise<Initiative[]> {
-  if (supabase) {
-    try {
-      const { data, error } = await supabase
-        .from('initiatives')
-        .select(`
-          *,
-          initiative_categories (
-            category_id,
-            categories (*)
-          )
-        `)
-        .eq('status', 'published')
-        .eq('is_featured', true)
-        .order('published_at', { ascending: false })
-        .limit(limit);
-
-      if (!error && data && data.length > 0) {
-        return data.map((item: any) => ({
-          ...item,
-          categories: item.initiative_categories?.map((ic: any) => ic.categories).filter(Boolean) || []
-        })) as Initiative[];
-      }
-    } catch {
-      // Fall through
-    }
-  }
   const featured = mockInitiatives
     .filter(i => i.status === 'published' && i.is_featured)
     .sort((a, b) => new Date(b.published_at || '').getTime() - new Date(a.published_at || '').getTime());
 
   if (featured.length >= limit) return featured.slice(0, limit);
-  // Fallback: latest published overall if fewer than limit exist
   return mockInitiatives
     .filter(i => i.status === 'published')
     .sort((a, b) => new Date(b.published_at || '').getTime() - new Date(a.published_at || '').getTime())
@@ -151,37 +74,6 @@ export async function getFeaturedInitiatives(limit: number = 3): Promise<Initiat
  * Fetch initiatives with optional category filtering
  */
 export async function getInitiatives(categorySlug?: string): Promise<Initiative[]> {
-  if (supabase) {
-    try {
-      let query = supabase
-        .from('initiatives')
-        .select(`
-          *,
-          initiative_categories!inner (
-            category_id,
-            categories!inner (*)
-          )
-        `)
-        .eq('status', 'published')
-        .order('is_featured', { ascending: false })
-        .order('published_at', { ascending: false });
-
-      if (categorySlug && categorySlug !== 'all') {
-        query = query.eq('initiative_categories.categories.slug', categorySlug);
-      }
-
-      const { data, error } = await query;
-      if (!error && data && data.length > 0) {
-        return data.map((item: any) => ({
-          ...item,
-          categories: item.initiative_categories?.map((ic: any) => ic.categories).filter(Boolean) || []
-        })) as Initiative[];
-      }
-    } catch {
-      // Fall through
-    }
-  }
-
   let list = mockInitiatives.filter(i => i.status === 'published');
   if (categorySlug && categorySlug !== 'all') {
     list = list.filter(i => i.categories?.some(c => c.slug === categorySlug));
@@ -196,41 +88,6 @@ export async function getInitiatives(categorySlug?: string): Promise<Initiative[
  * Fetch single initiative by slug
  */
 export async function getInitiativeBySlug(slug: string): Promise<Initiative | null> {
-  if (supabase) {
-    try {
-      const { data, error } = await supabase
-        .from('initiatives')
-        .select(`
-          *,
-          impact_metrics (*),
-          initiative_updates (*),
-          initiative_categories (
-            category_id,
-            categories (*)
-          ),
-          initiative_media (
-            sort_order,
-            media_assets (*)
-          )
-        `)
-        .eq('slug', slug)
-        .eq('status', 'published')
-        .single();
-
-      if (!error && data) {
-        return {
-          ...data,
-          categories: data.initiative_categories?.map((ic: any) => ic.categories).filter(Boolean) || [],
-          impact_metrics: (data.impact_metrics || []).sort((a: any, b: any) => a.sort_order - b.sort_order),
-          updates: (data.initiative_updates || []).sort((a: any, b: any) => new Date(b.update_date).getTime() - new Date(a.update_date).getTime()),
-          media: data.initiative_media?.map((im: any) => im.media_assets).filter(Boolean) || []
-        } as Initiative;
-      }
-    } catch {
-      // Fall through
-    }
-  }
-
   const found = mockInitiatives.find(i => i.slug === slug && i.status === 'published');
   return found || null;
 }
@@ -246,7 +103,6 @@ export async function getRelatedInitiatives(currentId: string, categoryIds: stri
   );
 
   if (candidates.length >= limit) return candidates.slice(0, limit);
-  // Fallback: any other published initiatives
   const fallback = mockInitiatives.filter(i => i.id !== currentId && i.status === 'published');
   return fallback.slice(0, limit);
 }
@@ -255,35 +111,6 @@ export async function getRelatedInitiatives(currentId: string, categoryIds: stri
  * Fetch featured article for homepage or listing hero
  */
 export async function getFeaturedArticle(): Promise<Article | null> {
-  if (supabase) {
-    try {
-      const { data, error } = await supabase
-        .from('articles')
-        .select(`
-          *,
-          authors (*),
-          article_categories (
-            categories (*)
-          )
-        `)
-        .eq('status', 'published')
-        .eq('is_featured', true)
-        .order('published_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (!error && data) {
-        return {
-          ...data,
-          author: data.authors,
-          categories: data.article_categories?.map((ac: any) => ac.categories).filter(Boolean) || []
-        } as Article;
-      }
-    } catch {
-      // Fall through
-    }
-  }
-
   const featured = mockArticles.find(a => a.status === 'published' && a.is_featured);
   return featured || mockArticles[0] || null;
 }
@@ -299,12 +126,14 @@ export async function getArticles(categorySlug?: string, excludeSlug?: string, l
   }
 
   if (categorySlug && categorySlug !== 'all') {
-    list = list.filter(a => a.categories?.some(c => c.slug === categorySlug));
+    list = list.filter(a =>
+      a.categories?.some(c => c.slug === categorySlug || c.name.toLowerCase() === categorySlug.toLowerCase())
+    );
   }
 
-  list = list.sort((a, b) => new Date(b.published_at || '').getTime() - new Date(a.published_at || '').getTime());
+  list.sort((a, b) => new Date(b.published_at || '').getTime() - new Date(a.published_at || '').getTime());
 
-  if (limit) {
+  if (limit && limit > 0) {
     return list.slice(0, limit);
   }
   return list;
@@ -314,50 +143,18 @@ export async function getArticles(categorySlug?: string, excludeSlug?: string, l
  * Fetch single article by slug
  */
 export async function getArticleBySlug(slug: string): Promise<Article | null> {
-  if (supabase) {
-    try {
-      const { data, error } = await supabase
-        .from('articles')
-        .select(`
-          *,
-          authors (*),
-          article_categories (
-            categories (*)
-          ),
-          article_media (
-            sort_order,
-            media_assets (*)
-          )
-        `)
-        .eq('slug', slug)
-        .eq('status', 'published')
-        .single();
-
-      if (!error && data) {
-        return {
-          ...data,
-          author: data.authors,
-          categories: data.article_categories?.map((ac: any) => ac.categories).filter(Boolean) || [],
-          media: data.article_media?.map((am: any) => am.media_assets).filter(Boolean) || []
-        } as Article;
-      }
-    } catch {
-      // Fall through
-    }
-  }
-
   const found = mockArticles.find(a => a.slug === slug && a.status === 'published');
   return found || null;
 }
 
 /**
- * Fetch related articles sharing at least one category
+ * Fetch related articles
  */
 export async function getRelatedArticles(currentId: string, categorySlugs: string[], limit: number = 3): Promise<Article[]> {
   const candidates = mockArticles.filter(a =>
     a.id !== currentId &&
     a.status === 'published' &&
-    a.categories?.some(c => categorySlugs.includes(c.slug) || categorySlugs.includes(c.id))
+    a.categories?.some(c => categorySlugs.includes(c.slug))
   );
 
   if (candidates.length >= limit) return candidates.slice(0, limit);
@@ -366,17 +163,46 @@ export async function getRelatedArticles(currentId: string, categorySlugs: strin
 }
 
 /**
- * Get Impact Highlights metrics for Home
+ * Fetch impact metrics
  */
-export async function getImpactHighlights(): Promise<Array<{ label: string; value: string; notes?: string }>> {
-  const profile = await getOrganizationProfile();
-  if (profile.global_metrics && profile.global_metrics.length > 0) {
-    return profile.global_metrics;
-  }
-  return [
-    { label: 'Communities supported', value: '50+' },
-    { label: 'Beneficiaries reached', value: '12,400+' },
-    { label: 'Active initiatives', value: '18' },
-    { label: 'Volunteers involved', value: '450+' }
+export async function getImpactMetrics(): Promise<ImpactMetric[]> {
+  const metrics: ImpactMetric[] = [
+    {
+      id: 'metric-1',
+      initiative_id: 'init-1',
+      label: 'Native Canopy Trees Planted',
+      value: 4280,
+      display_value: '4,280',
+      notes: 'Planted across urban heat corridors in 14 partner neighborhoods.',
+      sort_order: 1
+    },
+    {
+      id: 'metric-2',
+      initiative_id: 'init-2',
+      label: 'Lbs Fresh Produce Harvested',
+      value: 86400,
+      display_value: '86,400',
+      notes: 'Distributed free to local food cooperatives and senior centers.',
+      sort_order: 2
+    },
+    {
+      id: 'metric-3',
+      initiative_id: 'init-3',
+      label: 'Gallons Stormwater Filtered',
+      value: 1200000,
+      display_value: '1.2M',
+      notes: 'Diverted from city drains via bioswales and neighborhood rain gardens.',
+      sort_order: 3
+    },
+    {
+      id: 'metric-4',
+      initiative_id: 'init-4',
+      label: 'Youth Environmental Stewards',
+      value: 310,
+      display_value: '310',
+      notes: 'Paid high school apprentices trained in urban arboriculture and stream health.',
+      sort_order: 4
+    }
   ];
+  return metrics;
 }

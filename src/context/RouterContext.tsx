@@ -10,50 +10,58 @@ interface RouterContextType {
 
 const RouterContext = createContext<RouterContextType | null>(null);
 
+function parseRouteFromLocation(): { path: string; queryParams: URLSearchParams; hash: string } {
+  if (typeof window === 'undefined') {
+    return { path: '/', queryParams: new URLSearchParams(), hash: '' };
+  }
+
+  const rawHash = window.location.hash || '';
+  const searchParams = new URLSearchParams(window.location.search);
+
+  // Check if hash-based routing is used for admin: e.g. #admin, #/admin
+  if (rawHash === '#admin' || rawHash === '#/admin' || rawHash.startsWith('#/admin')) {
+    return { path: '/admin', queryParams: searchParams, hash: rawHash };
+  }
+
+  // Check if query param admin is used: e.g. ?admin=true or ?admin
+  if (searchParams.has('admin') && searchParams.get('admin') !== 'false') {
+    return { path: '/admin', queryParams: searchParams, hash: rawHash };
+  }
+
+  let rawPath = window.location.pathname || '/';
+
+  // Normalize: trim trailing slashes if length > 1
+  if (rawPath.length > 1 && rawPath.endsWith('/')) {
+    rawPath = rawPath.replace(/\/+$/, '');
+  }
+
+  return { path: rawPath || '/', queryParams: searchParams, hash: rawHash };
+}
+
 export const RouterProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUrl, setCurrentUrl] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return window.location.pathname + window.location.search + window.location.hash;
-    }
-    return '/';
-  });
-
-  const getPath = () => {
-    if (typeof window !== 'undefined') {
-      return window.location.pathname || '/';
-    }
-    return '/';
-  };
-
-  const [path, setPath] = useState(getPath);
-  const [queryParams, setQueryParams] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return new URLSearchParams(window.location.search);
-    }
-    return new URLSearchParams();
-  });
-  const [hash, setHash] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return window.location.hash;
-    }
-    return '';
-  });
+  const initial = parseRouteFromLocation();
+  const [path, setPath] = useState(initial.path);
+  const [queryParams, setQueryParams] = useState(initial.queryParams);
+  const [hash, setHash] = useState(initial.hash);
 
   const updateStateFromWindow = useCallback(() => {
-    const newPath = window.location.pathname || '/';
-    setPath(newPath);
-    setQueryParams(new URLSearchParams(window.location.search));
-    setHash(window.location.hash);
-    setCurrentUrl(window.location.pathname + window.location.search + window.location.hash);
+    const route = parseRouteFromLocation();
+    setPath(route.path);
+    setQueryParams(route.queryParams);
+    setHash(route.hash);
   }, []);
 
   useEffect(() => {
-    const handlePopState = () => {
+    const handleLocationChange = () => {
       updateStateFromWindow();
     };
 
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+    window.addEventListener('popstate', handleLocationChange);
+    window.addEventListener('hashchange', handleLocationChange);
+    return () => {
+      window.removeEventListener('popstate', handleLocationChange);
+      window.removeEventListener('hashchange', handleLocationChange);
+    };
   }, [updateStateFromWindow]);
 
   const navigate = useCallback((to: string, options?: { replace?: boolean; scroll?: boolean }) => {
@@ -70,7 +78,7 @@ export const RouterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     updateStateFromWindow();
 
     if (shouldScroll) {
-      if (to.includes('#')) {
+      if (to.includes('#') && !to.startsWith('#/')) {
         const hashTarget = to.split('#')[1];
         setTimeout(() => {
           const el = document.getElementById(hashTarget);
@@ -89,9 +97,9 @@ export const RouterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const setPageMeta = useCallback((title: string, description?: string) => {
     if (typeof document === 'undefined') return;
 
-    const fullTitle = title.includes('Roots & Canopy') || title.includes('Community Organization')
+    const fullTitle = title.includes('Atiak & Abdi') || title.includes('Community Alliance')
       ? title
-      : `${title} | Roots & Canopy Alliance`;
+      : `${title} | Atiak & Abdi Community Alliance`;
 
     document.title = fullTitle;
 

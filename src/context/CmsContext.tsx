@@ -13,7 +13,7 @@ interface CmsContextValue {
   isSupabaseConnected: boolean;
   refreshSettings: () => Promise<void>;
   togglePreviewMode: () => void;
-  loginAsDemoAdmin: () => void;
+  setAdminUser: (user: CmsAdminUser | null) => void;
   logoutAdmin: () => Promise<void>;
 }
 
@@ -25,26 +25,13 @@ const CmsContext = createContext<CmsContextValue>({
   isSupabaseConnected: false,
   refreshSettings: async () => {},
   togglePreviewMode: () => {},
-  loginAsDemoAdmin: () => {},
+  setAdminUser: () => {},
   logoutAdmin: async () => {}
 });
 
 export const CmsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [settings, setSettings] = useState<CmsGlobalSettings>(defaultCmsGlobalSettings);
-  const [adminUser, setAdminUser] = useState<CmsAdminUser | null>(() => {
-    // Check if session storage has demo admin flag
-    if (typeof window !== 'undefined') {
-      const stored = sessionStorage.getItem('cms_demo_admin');
-      if (stored === 'true') {
-        return {
-          id: 'demo-admin-id',
-          email: 'preview-editor@community.org',
-          is_demo: true
-        };
-      }
-    }
-    return null;
-  });
+  const [adminUser, setAdminUser] = useState<CmsAdminUser | null>(null);
   const [isPreviewMode, setIsPreviewMode] = useState<boolean>(false);
   const { path, queryParams, navigate } = useRouter();
 
@@ -63,10 +50,10 @@ export const CmsProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     refreshSettings();
   }, []);
 
-  // Check admin session from Supabase if not in demo mode
+  // Check admin session from Supabase on mount
   useEffect(() => {
     async function checkAuth() {
-      if (isSupabaseConnected && !adminUser?.is_demo) {
+      if (isSupabaseConnected) {
         const admin = await checkCurrentAdmin();
         if (admin) {
           setAdminUser(admin);
@@ -76,22 +63,7 @@ export const CmsProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     checkAuth();
   }, [isSupabaseConnected]);
 
-  const loginAsDemoAdmin = () => {
-    const demo: CmsAdminUser = {
-      id: 'demo-admin-id',
-      email: 'preview-editor@community.org',
-      is_demo: true
-    };
-    setAdminUser(demo);
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('cms_demo_admin', 'true');
-    }
-  };
-
   const logoutAdmin = async () => {
-    if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('cms_demo_admin');
-    }
     setAdminUser(null);
     setIsPreviewMode(false);
     if (isSupabaseConnected) {
@@ -253,7 +225,7 @@ export const CmsProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         isSupabaseConnected,
         refreshSettings,
         togglePreviewMode,
-        loginAsDemoAdmin,
+        setAdminUser,
         logoutAdmin
       }}
     >
