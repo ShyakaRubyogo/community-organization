@@ -317,15 +317,73 @@ export async function sendMagicLink(email: string): Promise<{ success: boolean; 
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: {
-      emailRedirectTo: redirectUrl
+      emailRedirectTo: redirectUrl,
+      shouldCreateUser: false
     }
+  });
+
+  if (error) {
+    return {
+      success: false,
+      message: 'Invalid email address. This account is not registered as an administrator.'
+    };
+  }
+
+  return { success: true, message: 'Check your email for your secure magic sign-in link!' };
+}
+
+/**
+ * Send password reset email
+ */
+export async function sendPasswordResetEmail(email: string): Promise<{ success: boolean; message: string }> {
+  if (!isSupabaseConfigured() || !supabase) {
+    return {
+      success: false,
+      message: 'Supabase credentials are not configured in this environment.'
+    };
+  }
+
+  const redirectUrl = `${window.location.origin}/admin#reset-password`;
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+    redirectTo: redirectUrl
+  });
+
+  if (error) {
+    return {
+      success: false,
+      message: 'Invalid email address. This account is not registered as an administrator.'
+    };
+  }
+
+  return {
+    success: true,
+    message: 'Password reset link sent! Please check your email inbox.'
+  };
+}
+
+/**
+ * Update authenticated admin password
+ */
+export async function updateAdminPassword(newPassword: string): Promise<{ success: boolean; message: string }> {
+  if (!isSupabaseConfigured() || !supabase) {
+    return {
+      success: false,
+      message: 'Supabase credentials are not configured in this environment.'
+    };
+  }
+
+  const { error } = await supabase.auth.updateUser({
+    password: newPassword
   });
 
   if (error) {
     return { success: false, message: error.message };
   }
 
-  return { success: true, message: 'Check your email for your secure magic sign-in link!' };
+  return {
+    success: true,
+    message: 'Password updated successfully!'
+  };
 }
 
 /**
@@ -348,7 +406,7 @@ export async function signInWithPassword(
   });
 
   if (error) {
-    return { success: false, message: error.message };
+    return { success: false, message: 'Invalid email or password. Please verify your credentials.' };
   }
 
   if (!data.user) {

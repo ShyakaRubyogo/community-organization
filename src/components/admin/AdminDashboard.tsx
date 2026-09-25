@@ -7,7 +7,8 @@ import { AboutPageEditor } from './AboutPageEditor';
 import { ArticlesManager } from './ArticlesManager';
 import { InitiativesManager } from './InitiativesManager';
 import { TeamManager } from './TeamManager';
-import { logoutCmsAdmin } from '../../lib/cmsClient';
+import { logoutCmsAdmin, updateAdminPassword } from '../../lib/cmsClient';
+import { Button } from '../common/Button';
 import {
   Settings,
   Home,
@@ -19,18 +20,56 @@ import {
   LogOut,
   ExternalLink,
   ShieldCheck,
-  Radio
+  Radio,
+  KeyRound,
+  X,
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react';
 
 type AdminTab = 'settings' | 'home' | 'about' | 'articles' | 'initiatives' | 'team';
 
 export const AdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AdminTab>('settings');
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [pwLoading, setPwLoading] = useState(false);
+  const [pwResult, setPwResult] = useState<{ success: boolean; message: string } | null>(null);
+
   const { adminUser, isPreviewMode, togglePreviewMode, isSupabaseConnected, logoutAdmin } = useCms();
   const { navigate } = useRouter();
 
   const handleLogout = async () => {
     await logoutAdmin();
+  };
+
+  const handlePasswordUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword || newPassword !== confirmPassword) {
+      setPwResult({ success: false, message: 'Passwords do not match.' });
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPwResult({ success: false, message: 'Password must be at least 6 characters long.' });
+      return;
+    }
+
+    setPwLoading(true);
+    setPwResult(null);
+
+    const res = await updateAdminPassword(newPassword);
+    setPwResult(res);
+    setPwLoading(false);
+
+    if (res.success) {
+      setTimeout(() => {
+        setIsPasswordModalOpen(false);
+        setNewPassword('');
+        setConfirmPassword('');
+        setPwResult(null);
+      }, 1500);
+    }
   };
 
   const navItems: { id: AdminTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -51,26 +90,24 @@ export const AdminDashboard: React.FC = () => {
             A
           </div>
           <div>
-            <div className="font-['Fraunces'] font-semibold text-base text-[#211C0D] leading-tight">
-              Alliance Studio CMS
-            </div>
-            <div className="text-[11px] text-[#6B6350] flex items-center gap-1.5">
-              <span>{adminUser?.email || 'Authenticated Admin'}</span>
-              <span className="text-[#E4DCC8]">|</span>
-              <span className="inline-flex items-center gap-1 text-emerald-800 font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                {isSupabaseConnected ? 'Postgres Direct' : 'Local Fallback'}
+            <div className="font-['Fraunces'] font-semibold text-base text-[#211C0D] leading-tight flex items-center gap-2">
+              <span>Alliance CMS Studio</span>
+              <span className="text-[11px] font-['Karla'] font-normal px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                Live PostgreSQL RLS
               </span>
+            </div>
+            <div className="text-[11px] text-[#6B6350]">
+              Logged in as <strong className="text-[#211C0D] font-medium">{adminUser?.email || 'admin@community.org'}</strong>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           {/* Preview Mode Toggle */}
           <button
             type="button"
             onClick={togglePreviewMode}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors border ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors border cursor-pointer ${
               isPreviewMode
                 ? 'bg-amber-100 text-amber-900 border-amber-300'
                 : 'bg-[#FAF7F0] text-[#6B6350] border-[#E4DCC8] hover:text-[#211C0D]'
@@ -81,6 +118,20 @@ export const AdminDashboard: React.FC = () => {
             {isPreviewMode ? 'Draft Preview Active' : 'Preview Drafts'}
           </button>
 
+          {/* Change Password Button */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsPasswordModalOpen(true);
+              setPwResult(null);
+            }}
+            className="px-3 py-1.5 bg-[#FAF7F0] hover:bg-[#E4DCC8]/40 border border-[#E4DCC8] rounded-lg text-xs font-semibold text-[#211C0D] flex items-center gap-1.5 transition-colors cursor-pointer"
+            title="Update Administrator Password"
+          >
+            <KeyRound className="w-3.5 h-3.5 text-[#2C5745]" />
+            <span className="hidden sm:inline">Password</span>
+          </button>
+
           {/* View Live Site */}
           <a
             href="/"
@@ -89,14 +140,14 @@ export const AdminDashboard: React.FC = () => {
             className="px-3 py-1.5 bg-[#FAF7F0] hover:bg-[#E4DCC8]/40 border border-[#E4DCC8] rounded-lg text-xs font-semibold text-[#211C0D] flex items-center gap-1.5 transition-colors"
           >
             <ExternalLink className="w-3.5 h-3.5 text-[#2C5745]" />
-            Live Site
+            <span className="hidden sm:inline">Live Site</span>
           </a>
 
           {/* Logout */}
           <button
             type="button"
             onClick={handleLogout}
-            className="p-1.5 text-[#6B6350] hover:text-red-700 transition-colors"
+            className="p-1.5 text-[#6B6350] hover:text-red-700 transition-colors cursor-pointer"
             title="Log Out"
           >
             <LogOut className="w-4 h-4" />
@@ -119,22 +170,23 @@ export const AdminDashboard: React.FC = () => {
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-colors text-left ${
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left cursor-pointer ${
                     isActive
-                      ? 'bg-[#2C5745] text-[#FAF7F0] shadow-xs'
-                      : 'text-[#4A4437] hover:bg-[#FAF7F0] hover:text-[#211C0D]'
+                      ? 'bg-[#2C5745] text-[#FAF7F0]'
+                      : 'text-[#6B6350] hover:bg-[#FAF7F0] hover:text-[#211C0D]'
                   }`}
                 >
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-[#FAF7F0]' : 'text-[#2C5745]'}`} />
-                  {item.label}
+                  <Icon className="w-4 h-4" />
+                  <span>{item.label}</span>
                 </button>
               );
             })}
           </nav>
 
-          <div className="mt-8 p-3 rounded-lg bg-[#FAF7F0] border border-[#E4DCC8]/80 text-[11px] text-[#6B6350] space-y-1">
-            <div className="font-semibold text-[#211C0D] flex items-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5 text-[#2C5745]" /> Direct Architecture
+          <div className="mt-8 p-3 rounded-lg bg-[#FAF7F0] border border-[#E4DCC8]/60 text-[11px] text-[#6B6350] space-y-1.5">
+            <div className="font-semibold text-[#211C0D] flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#2C5745]" />
+              Draft / Publish Safe
             </div>
             <p>
               Auto-saves write safely to private draft columns. Explicit "Publish" promotes drafts atomically to the public views.
@@ -169,6 +221,96 @@ export const AdminDashboard: React.FC = () => {
           {activeTab === 'team' && <TeamManager />}
         </main>
       </div>
+
+      {/* Change Password Modal */}
+      {isPasswordModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-[#FFFFFF] border border-[#E4DCC8] rounded-2xl max-w-sm w-full p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-['Fraunces'] font-semibold text-lg text-[#211C0D]">
+                Change Password
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsPasswordModalOpen(false)}
+                className="text-[#6B6350] hover:text-[#211C0D] p-1 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-[#6B6350]">
+              Update the password for <strong className="text-[#211C0D]">{adminUser?.email}</strong>.
+            </p>
+
+            <form onSubmit={handlePasswordUpdate} className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-[#211C0D] uppercase mb-1">
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="At least 6 characters"
+                  className="w-full text-xs px-3 py-2 bg-[#FAF7F0] border border-[#E4DCC8] rounded-md text-[#211C0D] focus:outline-none focus:ring-1 focus:ring-[#2C5745]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-[#211C0D] uppercase mb-1">
+                  Confirm New Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Re-enter new password"
+                  className="w-full text-xs px-3 py-2 bg-[#FAF7F0] border border-[#E4DCC8] rounded-md text-[#211C0D] focus:outline-none focus:ring-1 focus:ring-[#2C5745]"
+                />
+              </div>
+
+              {pwResult && (
+                <div
+                  className={`p-2.5 rounded-lg text-xs flex items-start gap-1.5 ${
+                    pwResult.success
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                      : 'bg-red-50 text-red-800 border border-red-200'
+                  }`}
+                >
+                  {pwResult.success ? (
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-3.5 h-3.5 text-red-600 shrink-0 mt-0.5" />
+                  )}
+                  <span>{pwResult.message}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsPasswordModalOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="sm"
+                  disabled={pwLoading}
+                >
+                  {pwLoading ? 'Saving...' : 'Update Password'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
